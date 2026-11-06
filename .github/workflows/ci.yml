@@ -12,7 +12,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # macOS runners are scarce on free accounts; the script is pure stdlib
+        # Python, so Linux already covers the POSIX code path.
+        os: [ubuntu-latest, windows-latest]
         python: ["3.10", "3.13"]
     steps:
       - uses: actions/checkout@v4

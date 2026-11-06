@@ -14,4 +14,6 @@ First public release.
 - `--all` to scan every project on the machine, `--source` to pick tools, `--format table|json`.
 - `SKILL.md` following the Agent Skills convention, installable in Cursor, Claude Code, Codex and any `~/.agents/skills` reader.
 - One-line installers for PowerShell and POSIX shells.
-- Unit tests on synthetic fixtures for the three formats; CI on Linux, macOS and Windows.
+- Unit tests on synthetic fixtures for the three formats; CI on Linux and Windows.
+
+[1.0.0]: https://github.com/johnban-coder/prompt-counter/releases/tag/v1.0.0
