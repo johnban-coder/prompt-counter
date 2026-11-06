@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Counter — count your prompts and active time with Cursor, Claude Code and Codex</title>
+<meta name="description" content="Agent skill that counts your unique prompts and active working time per AI conversation. Cursor, Claude Code, OpenAI Codex. Local, stdlib Python, MIT.">
+<style>
+  :root{--bg:#0b0f17;--card:#121826;--line:#1f2a3d;--text:#e6ecf5;--muted:#93a1b7;--acc:#7c9cff;--acc2:#34d399;--warn:#fbbf24;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+  a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  header{padding:64px 0 32px;text-align:center}
+  h1{font-size:44px;margin:0 0 8px;letter-spacing:-.5px}
+  .tag{color:var(--muted);font-size:19px;margin:0 0 24px}
+  .badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:28px}
+  .badge{font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--muted);background:var(--card)}
+  .cta{display:inline-flex;gap:12px;flex-wrap:wrap;justify-content:center}
+  .btn{padding:10px 18px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font-weight:600}
+  .btn.primary{background:var(--acc);border-color:var(--acc);color:#0b0f17}
+  .lang{position:fixed;top:14px;right:14px;display:flex;gap:4px;z-index:9}
+  .lang button{background:var(--card);border:1px solid var(--line);color:var(--muted);padding:5px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+  .lang button.on{color:var(--text);border-color:var(--acc)}
+  section{padding:36px 0;border-top:1px solid var(--line)}
+  h2{font-size:26px;margin:0 0 14px}
+  h3{font-size:18px;margin:22px 0 8px}
+  p{margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .card h3{margin-top:0}
+  pre{background:#0a0e15;border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;font:13.5px/1.55 var(--mono);margin:10px 0}
+  code{font-family:var(--mono);font-size:.92em;background:#0a0e15;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+  pre code{border:0;padding:0;background:transparent}
+  .chat{background:#0a0e15;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+  .msg{display:flex;gap:12px;margin:12px 0}
+  .who{flex:0 0 72px;color:var(--muted);font-size:13px;padding-top:3px;text-align:right}
+  .bubble{flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .bubble.user{background:#172036}
+  table{width:100%;border-collapse:collapse;font-size:14px;margin:10px 0}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.total td{font-weight:700;border-top:2px solid var(--line)}
+  .src{font-family:var(--mono);font-size:12px;padding:2px 7px;border-radius:5px;border:1px solid var(--line)}
+  .src.cursor{color:#7c9cff}.src.claude{color:#f0a36b}.src.codex{color:#34d399}
+  .muted{color:var(--muted)}
+  .note{border-left:3px solid var(--warn);padding:8px 14px;background:#141a27;border-radius:0 8px 8px 0;margin:14px 0}
+  .ok{border-left-color:var(--acc2)}
+  .timeline{display:flex;gap:4px;align-items:flex-end;height:64px;margin:10px 0 4px}
+  .seg{flex:1;border-radius:4px 4px 0 0;background:var(--acc);opacity:.85;position:relative}
+  .seg.idle{background:#2a3449;height:18px!important}
+  .seg.busy{background:var(--acc2)}
+  .legend{display:flex;gap:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+  .legend span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  .legend .l1::before{background:var(--acc)}.legend .l2::before{background:var(--acc2)}.legend .l3::before{background:#2a3449}
+  footer{padding:36px 0 56px;color:var(--muted);font-size:14px;text-align:center;border-top:1px solid var(--line)}
+  [hidden]{display:none!important}
+  html:not(.ready) [data-fr]{display:none}
+  @media (max-width:640px){h1{font-size:34px}.who{flex-basis:48px}}
+</style>
+</head>
+<body>
+<div class="lang" role="group" aria-label="Language">
+  <button id="btn-en" class="on" onclick="setLang('en')">EN</button>
+  <button id="btn-fr" onclick="setLang('fr')">FR</button>
+</div>
+
+<header class="wrap">
+  <h1>Prompt Counter</h1>
+  <p class="tag" data-en>How many prompts did I really send on this project, and how long was I actively working with the AI?</p>
+  <p class="tag" data-fr>Combien de prompts ai-je vraiment envoyés sur ce projet, et combien de temps ai-je passé activement avec l'IA ?</p>
+  <div class="badges">
+    <span class="badge">Cursor</span><span class="badge">Claude Code</span><span class="badge">OpenAI Codex</span>
+    <span class="badge">SKILL.md</span><span class="badge">Python 3.10+ · stdlib only</span><span class="badge">100 % local</span><span class="badge">MIT</span>
+  </div>
+  <div class="cta">
+    <a class="btn primary" href="https://github.com/johnban-coder/prompt-counter">GitHub</a>
+    <a class="btn" href="#install" data-en>Install in one line</a>
+    <a class="btn" href="#install" data-fr>Installer en une ligne</a>
+    <a class="btn" href="#demo" data-en>See the demo</a>
+    <a class="btn" href="#demo" data-fr>Voir la démo</a>
+  </div>
+</header>
+
+<main class="wrap">
+
+<section id="what">
+  <div data-en>
+    <h2>What it does</h2>
+    <p>Prompt Counter is a tiny <em>agent skill</em>. Once installed, you type <code>/prompt-count</code> in Cursor, Claude Code or Codex and the agent runs a local Python script that reads the transcripts your tool already keeps on disk. You get, per conversation and per project:</p>
+  </div>
+  <div data-fr>
+    <h2>Ce que ça fait</h2>
+    <p>Prompt Counter est un petit <em>skill d'agent</em>. Une fois installé, tu tapes <code>/prompt-count</code> dans Cursor, Claude Code ou Codex et l'agent lance un script Python local qui lit les transcripts que ton outil garde déjà sur disque. Tu obtiens, par conversation et par projet :</p>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h3 data-en>Unique prompts</h3><h3 data-fr>Prompts uniques</h3>
+      <p data-en>Your real messages. Duplicates, the tool's automatic prompts and the <code>/prompt-count</code> call itself are excluded.</p>
+      <p data-fr>Tes vrais messages. Les doublons, les prompts automatiques de l'outil et l'appel <code>/prompt-count</code> lui-même sont exclus.</p>
+    </div>
+    <div class="card">
+      <h3 data-en>Active time</h3><h3 data-fr>Temps actif</h3>
+      <p data-en>Time you actually spent exchanging with the agent. Nights, lunch breaks and a PC left on do not count.</p>
+      <p data-fr>Le temps réellement passé à échanger avec l'agent. Les nuits, les pauses et un PC laissé allumé ne comptent pas.</p>
+    </div>
+    <div class="card">
+      <h3 data-en>Per workspace</h3><h3 data-fr>Par workspace</h3>
+      <p data-en>Each project is reported on its own. Use <code>--all</code> for a machine-wide view, one block per project.</p>
+      <p data-fr>Chaque projet est rapporté séparément. <code>--all</code> donne la vue machine entière, un bloc par projet.</p>
+    </div>
+  </div>
+</section>
+
+<section id="demo">
+  <h2 data-en>Demo</h2><h2 data-fr>Démo</h2>
+  <div class="note">
+    <strong data-en>Fictional data.</strong><strong data-fr>Données fictives.</strong>
+    <span data-en> Everything below was invented for this page: fake project, fake conversation titles, fake numbers. Prompt Counter never sends your real data anywhere, and none is published here.</span>
+    <span data-fr> Tout ce qui suit a été inventé pour cette page : projet fictif, titres de conversation fictifs, chiffres fictifs. Prompt Counter n'envoie jamais tes vraies données nulle part, et aucune n'est publiée ici.</span>
+  </div>
+
+  <div class="chat" aria-label="Example chat">
+    <div class="msg"><div class="who">alice</div><div class="bubble user"><code>/prompt-count</code></div></div>
+    <div class="msg"><div class="who">agent</div><div class="bubble">
+      <p data-en><strong>42 unique prompts</strong> · <strong>3 h 53 min active</strong> · 3 conversations on <code>acme-shop</code></p>
+      <p data-fr><strong>42 prompts uniques</strong> · <strong>3 h 53 min de temps actif</strong> · 3 conversations sur <code>acme-shop</code></p>
+      <table>
+        <thead><tr>
+          <th data-en>Conversation</th><th data-fr>Conversation</th>
+          <th>Source</th>
+          <th data-en>Period</th><th data-fr>Période</th>
+          <th class="num" data-en>Prompts</th><th class="num" data-fr>Prompts</th>
+          <th class="num" data-en>Active time</th><th class="num" data-fr>Temps actif</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Add a dark mode toggle to the settings page</td><td><span class="src cursor">cursor</span></td><td class="muted">2026-03-02 09:12 → 10:47</td><td class="num">14</td><td class="num">1 h 23 min</td></tr>
+          <tr><td>Refactor the payment service and add retries on timeout</td><td><span class="src claude">claude</span></td><td class="muted">2026-03-03 14:05 → 16:26</td><td class="num">22</td><td class="num">1 h 51 min</td></tr>
+          <tr><td>Fix the flaky checkout test and open a PR</td><td><span class="src codex">codex</span></td><td class="muted">2026-03-04 08:30 → 09:09</td><td class="num">6</td><td class="num">39 min</td></tr>
+          <tr class="total"><td data-en>Total</td><td data-fr>Total</td><td></td><td></td><td class="num">42</td><td class="num">3 h 53 min</td></tr>
+        </tbody>
+      </table>
+      <p class="muted" data-en><em>excluded: 1 skill call, 3 automatic prompts, 3 duplicates</em></p>
+      <p class="muted" data-fr><em>exclus : 1 appel du skill, 3 prompts automatiques, 3 doublons</em></p>
+    </div></div>
+  </div>
+
+  <h3 data-en>Raw JSON (what the agent reads)</h3><h3 data-fr>JSON brut (ce que lit l'agent)</h3>
+  <p data-en>Same fictional example, trimmed. Full file: <a href="sample-output.json">sample-output.json</a>.</p>
+  <p data-fr>Même exemple fictif, abrégé. Fichier complet : <a href="sample-output.json">sample-output.json</a>.</p>
+<pre><code>{
+  "workspace": "/home/alice/acme-shop",
+  "duration_mode": "active",
+  "conversations": [
+    {
+      "source": "cursor",
+      "title": "Add a dark mode toggle to the settings page",
+      "first": "2026-03-02 09:12",
+      "last_ai": "2026-03-02 10:47",
+      "unique_prompts": 14,
+      "duration": "1 h 23 min",
+      "auto_prompts": 3,
+      "duplicates": 1
+    }
+  ],
+  "totals": {
+    "unique_prompts": 42,
+    "conversations": 3,
+    "by_source": { "cursor": 14, "claude": 22, "codex": 6 },
+    "duration": "3 h 53 min"
+  }
+}</code></pre>
+</section>
+
+<section id="active-time">
+  <h2 data-en>How active time is computed</h2><h2 data-fr>Comment le temps actif est calculé</h2>
+  <p data-en>A conversation is a list of your prompts with timestamps, plus the tool calls the agent made between them. Each gap between two prompts is credited like this:</p>
+  <p data-fr>Une conversation est une liste de tes prompts horodatés, plus les appels d'outils de l'agent entre deux. Chaque écart entre deux prompts est crédité ainsi :</p>
+
+  <div class="timeline" aria-hidden="true">
+    <div class="seg" style="height:40px" title="9 min"></div>
+    <div class="seg" style="height:30px" title="4 min"></div>
+    <div class="seg busy" style="height:64px" title="agent busy, 45 min cap"></div>
+    <div class="seg" style="height:34px" title="7 min"></div>
+    <div class="seg idle" title="night: 5 min only"></div>
+    <div class="seg" style="height:44px" title="11 min"></div>
+    <div class="seg" style="height:26px" title="3 min"></div>
+  </div>
+  <div class="legend">
+    <span class="l1" data-en>≤ 15 min gap → fully counted</span><span class="l1" data-fr>écart ≤ 15 min → compté en entier</span>
+    <span class="l2" data-en>long gap, agent ran ≥ 5 tools → capped at 45 min</span><span class="l2" data-fr>écart long, agent a lancé ≥ 5 outils → plafonné à 45 min</span>
+    <span class="l3" data-en>long gap, agent idle → 5 min only</span><span class="l3" data-fr>écart long, agent inactif → 5 min seulement</span>
+  </div>
+
+  <table style="margin-top:18px">
+    <thead><tr><th data-en>Situation</th><th data-fr>Situation</th><th data-en>Credited</th><th data-fr>Crédité</th></tr></thead>
+    <tbody>
+      <tr><td data-en>Next prompt within 15 min</td><td data-fr>Prompt suivant dans les 15 min</td><td data-en>the whole gap</td><td data-fr>tout l'écart</td></tr>
+      <tr><td data-en>Longer gap, agent ran ≥ 5 tool calls before it</td><td data-fr>Écart plus long, agent a lancé ≥ 5 outils juste avant</td><td data-en>the gap, capped at 45 min</td><td data-fr>l'écart, plafonné à 45 min</td></tr>
+      <tr><td data-en>Longer gap, agent idle (night, lunch, PC left on)</td><td data-fr>Écart plus long, agent inactif (nuit, pause, PC allumé)</td><td data-en>5 min wrap-up only</td><td data-fr>5 min de clôture seulement</td></tr>
+      <tr><td data-en>After your last prompt</td><td data-fr>Après ton dernier prompt</td><td data-en>until the agent's last write, same rules</td><td data-fr>jusqu'à la dernière écriture de l'agent, mêmes règles</td></tr>
+    </tbody>
+  </table>
+  <p class="muted" data-en>Thresholds are constants at the top of <code>scripts/count.py</code>.</p>
+  <p class="muted" data-fr>Les seuils sont des constantes en tête de <code>scripts/count.py</code>.</p>
+</section>
+
+<section id="install">
+  <h2 data-en>Install</h2><h2 data-fr>Installation</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>macOS / Linux</h3>
+<pre><code>curl -fsSL https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.sh | sh</code></pre>
+    </div>
+    <div class="card">
+      <h3>Windows (PowerShell)</h3>
+<pre><code>irm https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.ps1 | iex</code></pre>
+    </div>
+  </div>
+  <p data-en>The installer copies <code>SKILL.md</code> and <code>scripts/</code> into <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> and <code>~/.agents/skills</code>. Pick targets with <code>TARGETS="cursor claude"</code> / <code>-Targets cursor,claude</code>. Requires Python 3.10+.</p>
+  <p data-fr>L'installeur copie <code>SKILL.md</code> et <code>scripts/</code> dans <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> et <code>~/.agents/skills</code>. Choisis les cibles avec <code>TARGETS="cursor claude"</code> / <code>-Targets cursor,claude</code>. Nécessite Python 3.10+.</p>
+
+  <h3 data-en>Or just paste the URL in your chat</h3><h3 data-fr>Ou colle simplement l'URL dans ton chat</h3>
+  <div class="chat">
+    <div class="msg"><div class="who">you</div><div class="bubble user" data-en>Install this skill: https://github.com/johnban-coder/prompt-counter</div><div class="bubble user" data-fr>Installe ce skill : https://github.com/johnban-coder/prompt-counter</div></div>
+    <div class="msg"><div class="who">agent</div><div class="bubble" data-en>Reading the README… running the installer… done. Type <code>/prompt-count</code> whenever you want your numbers.</div><div class="bubble" data-fr>Lecture du README… exécution de l'installeur… terminé. Tape <code>/prompt-count</code> quand tu veux tes chiffres.</div></div>
+  </div>
+  <p data-en>The README starts with a section written for AI agents, so Cursor, Claude Code and Codex know exactly what to do with the link. You can also use <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>, or <code>npx skills add johnban-coder/prompt-counter</code>.</p>
+  <p data-fr>Le README commence par une section écrite pour les agents IA, donc Cursor, Claude Code et Codex savent exactement quoi faire du lien. Tu peux aussi passer par <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>, ou <code>npx skills add johnban-coder/prompt-counter</code>.</p>
+</section>
+
+<section id="use">
+  <h2 data-en>Use</h2><h2 data-fr>Utilisation</h2>
+  <div class="grid">
+    <div class="card">
+      <h3 data-en>In a chat</h3><h3 data-fr>Dans un chat</h3>
+<pre><code>/prompt-count
+/prompt-count --all
+how many prompts did I send here?
+combien de prompts ?</code></pre>
+    </div>
+    <div class="card">
+      <h3 data-en>In a terminal</h3><h3 data-fr>Dans un terminal</h3>
+<pre><code>python scripts/count.py --workspace . --format table
+python scripts/count.py --all --format table
+python scripts/count.py --source cursor,claude</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="privacy">
+  <h2 data-en>Privacy</h2><h2 data-fr>Confidentialité</h2>
+  <div class="note ok">
+    <p data-en>Everything runs on your machine. No network calls, no telemetry, no dependency to install. The report only contains a short excerpt (first line, ≤ 72 characters) of the first prompt of each conversation, used as a title. The script is one readable file: <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
+    <p data-fr>Tout tourne sur ta machine. Aucun appel réseau, aucune télémétrie, aucune dépendance à installer. Le rapport ne contient qu'un court extrait (première ligne, ≤ 72 caractères) du premier prompt de chaque conversation, utilisé comme titre. Le script tient en un fichier lisible : <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
+  </div>
+  <h3 data-en>Where the data is read from</h3><h3 data-fr>D'où sont lues les données</h3>
+  <table>
+    <thead><tr><th data-en>Tool</th><th data-fr>Outil</th><th data-en>Path</th><th data-fr>Chemin</th></tr></thead>
+    <tbody>
+      <tr><td>Cursor</td><td><code>~/.cursor/projects/&lt;slug&gt;/agent-transcripts/</code></td></tr>
+      <tr><td>Claude Code</td><td><code>~/.claude/projects/&lt;slug&gt;/*.jsonl</code></td></tr>
+      <tr><td>OpenAI Codex</td><td><code>~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-en>Prompt Counter · MIT License · © 2026 <a href="https://github.com/johnban-coder">johnban-coder</a> · <a href="https://github.com/johnban-coder/prompt-counter">Source on GitHub</a></span>
+    <span data-fr>Prompt Counter · Licence MIT · © 2026 <a href="https://github.com/johnban-coder">johnban-coder</a> · <a href="https://github.com/johnban-coder/prompt-counter">Code source sur GitHub</a></span>
+  </div>
+</footer>
+
+<script>
+  function setLang(l){
+    document.documentElement.lang = l;
+    document.documentElement.classList.add('ready');
+    document.querySelectorAll('[data-en]').forEach(function(e){e.hidden = l!=='en'});
+    document.querySelectorAll('[data-fr]').forEach(function(e){e.hidden = l!=='fr'});
+    document.getElementById('btn-en').classList.toggle('on', l==='en');
+    document.getElementById('btn-fr').classList.toggle('on', l==='fr');
+    try{localStorage.setItem('pc-lang', l)}catch(e){}
+  }
+  (function(){
+    var saved=null; try{saved=localStorage.getItem('pc-lang')}catch(e){}
+    var nav=(navigator.language||'').toLowerCase().startsWith('fr')?'fr':'en';
+    setLang(saved||nav);
+  })();
+</script>
+</body>
+</html>
