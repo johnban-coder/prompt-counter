@@ -133,6 +133,30 @@ class ReportTests(unittest.TestCase):
         self.assertIn("| Build the landing page | cursor |", table)
         self.assertIn("**2 unique prompts**", table)
 
+    def test_all_mode_has_summary_with_grand_total(self):
+        def project(name, source, n_prompts, minutes):
+            rows = [count.Row(dt=T0 + timedelta(minutes=i * 5), query=f"{name} prompt {i}") for i in range(n_prompts)]
+            conv = count.Conversation(source, name, Path(name), rows, T0 + timedelta(minutes=minutes))
+            rep = count.build_report([conv], [{"source": source, "path": name}])
+            rep["workspace"], rep["source"] = name, source
+            return rep
+
+        # small: 5 min gap + 2 min tail = 7 min. big: 19 gaps × 5 min + 5 min tail = 1 h 40 min.
+        report = count.build_all_report([project("small", "cursor", 2, 7), project("big", "claude", 20, 100)])
+        t = report["totals"]
+        self.assertEqual(t["projects"], 2)
+        self.assertEqual(t["unique_prompts"], 22)
+        self.assertEqual(t["duration"], "1 h 47 min")
+        self.assertAlmostEqual(t["duration_hours"], 1.78, places=2)
+        self.assertEqual([p["workspace"] for p in report["projects"]], ["big", "small"])
+        table = count.render_table(report)
+        self.assertTrue(table.startswith("## Summary — all projects"))
+        self.assertIn("**22 unique prompts** · **1 h 47 min active (≈ 1.8 h)** · 2 project(s)", table)
+        self.assertIn("| big | claude | 1 | 20 | 1 h 40 min |", table)
+        self.assertIn("| **Total** | | **2** | **22** | **1 h 47 min** |", table)
+        self.assertIn("_by tool: cursor 2 prompts / 7 min, claude 20 prompts / 1 h 40 min_", table)
+        self.assertTrue(table.rstrip().endswith("· 2 project(s)**"))
+
     def test_missing_workspace_reports_error(self):
         with tempfile.TemporaryDirectory() as tmp:
             report = count.scan_workspace(Path(tmp), {"cursor"})

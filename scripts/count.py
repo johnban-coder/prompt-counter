@@ -21,7 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 # --- Active time model --------------------------------------------------------
 # A gap longer than IDLE_GAP_S between two of your prompts is idle time, unless
@@ -518,6 +518,7 @@ def _totals(chats: list[dict]) -> dict:
         },
         "duration_seconds": total_dur,
         "duration": format_duration(total_dur),
+        "duration_hours": round(total_dur / 3600.0, 2) if total_dur is not None else None,
     }
 
 
@@ -579,10 +580,30 @@ def scan_all(wanted: set[str]) -> dict:
             report["workspace"] = name
             report["source"] = source
             projects.append(report)
+    return build_all_report(projects)
+
+
+def build_all_report(projects: list[dict]) -> dict:
+    """Wrap per-project reports with machine-wide totals (most active project first)."""
+    projects = sorted(
+        projects,
+        key=lambda p: (p["totals"]["duration_seconds"] or 0.0, p["totals"]["unique_prompts"]),
+        reverse=True,
+    )
     all_chats = [c for p in projects for c in p["conversations"]]
     totals = _totals(all_chats)
     totals["projects"] = len(projects)
+    totals["duration_by_source"] = {
+        s: format_duration(sum(c["duration_seconds"] or 0.0 for c in all_chats if c["source"] == s))
+        for s in SOURCES
+        if any(c["source"] == s for c in all_chats)
+    }
     return {"version": __version__, "mode": "all", "projects": projects, "totals": totals}
+
+
+def _hours(t: dict) -> str:
+    h = t.get("duration_hours")
+    return f" (≈ {h:.1f} h)" if h is not None and h >= 1 else ""
 
 
 def render_table(report: dict) -> str:
@@ -618,12 +639,49 @@ def render_table(report: dict) -> str:
 
     out: list[str] = []
     if report.get("mode") == "all":
+        t = report["totals"]
+        headline = (
+            f"**{t['unique_prompts']} unique prompts** · **{t['duration']} active{_hours(t)}** · "
+            f"{t['projects']} project(s) · {t['conversations']} conversation(s)"
+        )
+        out.append("## Summary — all projects")
+        out.append("")
+        out.append(headline)
+        out.append("")
+        out.append("| Project | Source | Conversations | Prompts | Active time |")
+        out.append("|---|---|---:|---:|---:|")
+        for p in report["projects"]:
+            pt = p["totals"]
+            out.append(
+                f"| {p['workspace']} | {p['source']} | {pt['conversations']} | "
+                f"{pt['unique_prompts']} | {pt['duration']} |"
+            )
+        out.append(
+            f"| **Total** | | **{t['conversations']}** | **{t['unique_prompts']}** | **{t['duration']}** |"
+        )
+        by_src = t.get("by_source") or {}
+        if len(by_src) > 1:
+            out.append("")
+            out.append(
+                "_by tool: "
+                + ", ".join(
+                    f"{s} {n} prompts / {t.get('duration_by_source', {}).get(s, '—')}" for s, n in by_src.items()
+                )
+                + "_"
+            )
+        out.append("")
+        out.append(
+            f"_excluded: {t.get('skill_calls', 0)} skill call(s), "
+            f"{t.get('auto_prompts', 0)} automatic prompt(s), {t.get('duplicates', 0)} duplicate(s)_"
+        )
+        out.append("")
+        out.append("## Details per project")
+        out.append("")
         for p in report["projects"]:
             out += block(p, f"{p['workspace']} ({p['source']})")
-        t = report["totals"]
         out.append(
-            f"**All projects: {t['unique_prompts']} unique prompts, {t['duration']} active, "
-            f"{t['projects']} project(s)**"
+            f"**Total, all projects: {t['unique_prompts']} unique prompts · "
+            f"{t['duration']} active{_hours(t)} · {t['projects']} project(s)**"
         )
     else:
         if report.get("error"):

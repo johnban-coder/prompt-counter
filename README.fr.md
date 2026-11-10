@@ -105,6 +105,8 @@ python scripts/count.py --all --format table
 python scripts/count.py --source cursor,claude         # JSON, certains outils seulement
 ```
 
+`--all` commence par un résumé : total général de prompts et de temps actif (aussi en heures), une ligne par projet triée par temps actif, et la répartition par outil. Le détail par projet suit.
+
 Code de sortie `2` quand le workspace n'a pas encore de transcripts.
 
 ## Comment le temps actif est calculé

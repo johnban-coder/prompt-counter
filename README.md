@@ -111,6 +111,8 @@ python scripts/count.py --all --format table
 python scripts/count.py --source cursor,claude         # JSON, only some tools
 ```
 
+`--all` starts with a summary: grand total of prompts and active time (also in hours), one row per project sorted by active time, and a breakdown by tool. The per-project details follow.
+
 Exit code is `2` when the workspace has no transcripts yet.
 
 ## How active time works
