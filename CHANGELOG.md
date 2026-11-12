@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [SemVer](https://semver.org/).
 
+## [1.2.1] — 2026-11-12
+
+### Fixed
+- `update` reads the remote version via the GitHub Contents API instead of `raw.githubusercontent.com`, which can stay CDN-stale for minutes after a push.
+
 ## [1.2.0] — 2026-11-12
 
 ### Added
@@ -31,6 +36,7 @@ First public release.
 - One-line installers for PowerShell and POSIX shells.
 - Unit tests on synthetic fixtures for the three formats; CI on Linux and Windows.
 
+[1.2.1]: https://github.com/johnban-coder/prompt-counter/releases/tag/v1.2.1
 [1.2.0]: https://github.com/johnban-coder/prompt-counter/releases/tag/v1.2.0
 [1.1.0]: https://github.com/johnban-coder/prompt-counter/releases/tag/v1.1.0
 [1.0.0]: https://github.com/johnban-coder/prompt-counter/releases/tag/v1.0.0

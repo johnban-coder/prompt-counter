@@ -27,11 +27,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 REPO = "johnban-coder/prompt-counter"
 SKILL_NAME = "prompt-count"
 DEMO_URL = "https://johnban-coder.github.io/prompt-counter/"
-RAW_VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/main/scripts/count.py"
+# Prefer the Contents API: raw.githubusercontent.com is often CDN-stale right after a push.
+VERSION_API_URL = f"https://api.github.com/repos/{REPO}/contents/scripts/count.py?ref=main"
 ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/main.zip"
 
 # --- Active time model --------------------------------------------------------
@@ -738,7 +739,15 @@ def _http_get(url: str, timeout: float = 15.0) -> bytes:
 
 
 def fetch_remote_version() -> str:
-    body = _http_get(RAW_VERSION_URL).decode("utf-8", errors="replace")
+    req = urllib.request.Request(
+        VERSION_API_URL,
+        headers={
+            "User-Agent": f"prompt-counter/{__version__}",
+            "Accept": "application/vnd.github.raw",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=15.0) as resp:
+        body = resp.read().decode("utf-8", errors="replace")
     match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', body, re.M)
     if not match:
         raise RuntimeError("could not parse remote __version__")
