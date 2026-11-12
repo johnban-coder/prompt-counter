@@ -1,21 +1,23 @@
 ---
 name: prompt-count
-description: Count the user's unique prompts and active interaction time per AI conversation for the current project (Cursor, Claude Code, Codex), or every project with --all. Use when the user runs /prompt-count, /prompt-counter, /counter-prompt, or asks "how many prompts did I send", "prompt count", "combien de prompts", "nombre de prompts", "temps actif", "temps passé", "durée" on a project.
+description: Count the user's unique prompts and active interaction time per AI conversation for the current project (Cursor, Claude Code, Codex), or every project with --all. Also handles /prompt-count help and /prompt-count update. Use when the user runs /prompt-count, /prompt-counter, /counter-prompt, help or update for this skill, or asks "how many prompts did I send", "prompt count", "combien de prompts", "nombre de prompts", "temps actif", "temps passé", "durée" on a project.
 ---
 
 # Prompt Counter
 
 Answers "how many prompts did I really send on this project, and how long was I actively working with the AI?"
-Everything runs locally from the transcripts Cursor, Claude Code and Codex already keep on disk. Nothing is sent anywhere.
+Everything runs locally from the transcripts Cursor, Claude Code and Codex already keep on disk. Nothing is sent anywhere (except `update`, which downloads from GitHub).
 
 ## When
 
-The user asks how many prompts they sent, how much active time a conversation took, or types `/prompt-count` (aliases: `/prompt-counter`, `/counter-prompt`).
+The user asks how many prompts they sent, how much active time a conversation took, or types `/prompt-count` (aliases: `/prompt-counter`, `/counter-prompt`), including with `help`, `update` or `--all`.
 
 ## Run
 
 Execute the bundled script. Do **not** rewrite it. Python 3.10+, standard library only.
 `<skill-dir>` is the directory that contains this `SKILL.md` (for example `~/.cursor/skills/prompt-count`, `~/.claude/skills/prompt-count`, `~/.codex/skills/prompt-count`, `~/.agents/skills/prompt-count`, or `.cursor/skills/prompt-count` inside the repo).
+
+### Count (default)
 
 ```bash
 python "<skill-dir>/scripts/count.py" --workspace . --format table
@@ -25,7 +27,27 @@ python "<skill-dir>/scripts/count.py" --workspace . --format table
 python "<skill-dir>\scripts\count.py" --workspace . --format table
 ```
 
-Flags:
+### Help
+
+When the user types `/prompt-count help` (or asks how the skill works):
+
+```bash
+python "<skill-dir>/scripts/count.py" help
+```
+
+Print the script output as-is. Do not invent extra commands.
+
+### Update
+
+When the user types `/prompt-count update` (or asks to update / upgrade the skill):
+
+```bash
+python "<skill-dir>/scripts/count.py" update
+```
+
+Print the script output as-is. Tell the user to open a **new** chat so the reloaded `SKILL.md` is picked up.
+
+Flags for counting:
 
 - `--workspace .` — this project only (default). Always pass the project root so counts stay independent per workspace.
 - `--all` — every project found on this machine (also when the user types `/prompt-count --all`). See "With --all" below.
@@ -50,6 +72,7 @@ Explain **active time** in one sentence if the user has not seen it before:
 One line under the table with what was excluded: `skill_calls` (this command itself), `auto_prompts` (prompts injected by the tool, e.g. "Briefly inform the user…"), `duplicates` (same message sent twice).
 
 If the JSON has `error`, the project has no transcripts yet; say so and suggest `--all`.
+If the JSON or table has an `update_notice`, show it once at the top.
 
 ## With `--all`
 

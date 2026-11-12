@@ -69,4 +69,5 @@ try { $py = (python --version) 2>&1 } catch { $py = $null }
 if (-not $py) { Write-Warning "Python 3.10+ not found on PATH — the skill needs it to run." }
 
 Write-Host ""
-Write-Host "Done. Open a chat in your AI tool and type:  /prompt-count"
+Write-Host "Done. Open a chat and type:  /prompt-count"
+Write-Host "Later:  /prompt-count help   or   /prompt-count update"

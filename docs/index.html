@@ -210,24 +210,25 @@
   <h2 data-en>Install</h2><h2 data-fr>Installation</h2>
   <div class="grid">
     <div class="card">
-      <h3>macOS / Linux</h3>
-<pre><code>curl -fsSL https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.sh | sh</code></pre>
+      <h3>skills.sh (recommended)</h3>
+<pre><code>npx skills add johnban-coder/prompt-counter -g</code></pre>
     </div>
     <div class="card">
-      <h3>Windows (PowerShell)</h3>
-<pre><code>irm https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.ps1 | iex</code></pre>
+      <h3>Shell fallback</h3>
+<pre><code>curl -fsSL …/install.sh | sh
+irm …/install.ps1 | iex</code></pre>
     </div>
   </div>
-  <p data-en>The installer copies <code>SKILL.md</code> and <code>scripts/</code> into <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> and <code>~/.agents/skills</code>. Pick targets with <code>TARGETS="cursor claude"</code> / <code>-Targets cursor,claude</code>. Requires Python 3.10+.</p>
-  <p data-fr>L'installeur copie <code>SKILL.md</code> et <code>scripts/</code> dans <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> et <code>~/.agents/skills</code>. Choisis les cibles avec <code>TARGETS="cursor claude"</code> / <code>-Targets cursor,claude</code>. Nécessite Python 3.10+.</p>
+  <p data-en>Preferred install goes through <a href="https://skills.sh">skills.sh</a> so the skill shows up in <code>npx skills find</code> and updates with <code>npx skills update</code>. The shell installers copy into <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> and <code>~/.agents/skills</code>. Requires Python 3.10+.</p>
+  <p data-fr>L'install recommandée passe par <a href="https://skills.sh">skills.sh</a> pour apparaître dans <code>npx skills find</code> et se mettre à jour avec <code>npx skills update</code>. Les installateurs shell copient dans <code>~/.cursor/skills</code>, <code>~/.claude/skills</code>, <code>~/.codex/skills</code> et <code>~/.agents/skills</code>. Nécessite Python 3.10+.</p>
 
   <h3 data-en>Or just paste the URL in your chat</h3><h3 data-fr>Ou colle simplement l'URL dans ton chat</h3>
   <div class="chat">
     <div class="msg"><div class="who">you</div><div class="bubble user" data-en>Install this skill: https://github.com/johnban-coder/prompt-counter</div><div class="bubble user" data-fr>Installe ce skill : https://github.com/johnban-coder/prompt-counter</div></div>
     <div class="msg"><div class="who">agent</div><div class="bubble" data-en>Reading the README… running the installer… done. Type <code>/prompt-count</code> whenever you want your numbers.</div><div class="bubble" data-fr>Lecture du README… exécution de l'installeur… terminé. Tape <code>/prompt-count</code> quand tu veux tes chiffres.</div></div>
   </div>
-  <p data-en>The README starts with a section written for AI agents, so Cursor, Claude Code and Codex know exactly what to do with the link. You can also use <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>, or <code>npx skills add johnban-coder/prompt-counter</code>.</p>
-  <p data-fr>Le README commence par une section écrite pour les agents IA, donc Cursor, Claude Code et Codex savent exactement quoi faire du lien. Tu peux aussi passer par <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>, ou <code>npx skills add johnban-coder/prompt-counter</code>.</p>
+  <p data-en>The README starts with a section written for AI agents, so Cursor, Claude Code and Codex know exactly what to do with the link. You can also use <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>.</p>
+  <p data-fr>Le README commence par une section écrite pour les agents IA, donc Cursor, Claude Code et Codex savent exactement quoi faire du lien. Tu peux aussi passer par <em>Cursor → Settings → Rules &amp; Skills → Add skill from GitHub</em>.</p>
 </section>
 
 <section id="use">
@@ -237,14 +238,15 @@
       <h3 data-en>In a chat</h3><h3 data-fr>Dans un chat</h3>
 <pre><code>/prompt-count
 /prompt-count --all
-how many prompts did I send here?
-combien de prompts ?</code></pre>
+/prompt-count help
+/prompt-count update</code></pre>
     </div>
     <div class="card">
       <h3 data-en>In a terminal</h3><h3 data-fr>Dans un terminal</h3>
 <pre><code>python scripts/count.py --workspace . --format table
 python scripts/count.py --all --format table
-python scripts/count.py --source cursor,claude</code></pre>
+python scripts/count.py help
+python scripts/count.py update</code></pre>
     </div>
   </div>
 </section>
@@ -252,8 +254,8 @@ python scripts/count.py --source cursor,claude</code></pre>
 <section id="privacy">
   <h2 data-en>Privacy</h2><h2 data-fr>Confidentialité</h2>
   <div class="note ok">
-    <p data-en>Everything runs on your machine. No network calls, no telemetry, no dependency to install. The report only contains a short excerpt (first line, ≤ 72 characters) of the first prompt of each conversation, used as a title. The script is one readable file: <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
-    <p data-fr>Tout tourne sur ta machine. Aucun appel réseau, aucune télémétrie, aucune dépendance à installer. Le rapport ne contient qu'un court extrait (première ligne, ≤ 72 caractères) du premier prompt de chaque conversation, utilisé comme titre. Le script tient en un fichier lisible : <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
+    <p data-en>Counting runs on your machine with no network calls and no telemetry. The only command that talks to the network is <code>/prompt-count update</code> (downloads from GitHub). The report only contains a short excerpt (first line, ≤ 72 characters) of the first prompt of each conversation, used as a title. The script is one readable file: <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
+    <p data-fr>Le comptage tourne sur ta machine, sans appel réseau ni télémétrie. La seule commande qui parle au réseau est <code>/prompt-count update</code> (téléchargement depuis GitHub). Le rapport ne contient qu'un court extrait (première ligne, ≤ 72 caractères) du premier prompt de chaque conversation, utilisé comme titre. Le script tient en un fichier lisible : <a href="https://github.com/johnban-coder/prompt-counter/blob/main/scripts/count.py">scripts/count.py</a>.</p>
   </div>
   <h3 data-en>Where the data is read from</h3><h3 data-fr>D'où sont lues les données</h3>
   <table>

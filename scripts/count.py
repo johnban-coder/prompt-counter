@@ -14,14 +14,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
+import shutil
 import sys
+import tempfile
+import urllib.error
+import urllib.request
+import zipfile
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Iterable
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
+REPO = "johnban-coder/prompt-counter"
+SKILL_NAME = "prompt-count"
+DEMO_URL = "https://johnban-coder.github.io/prompt-counter/"
+RAW_VERSION_URL = f"https://raw.githubusercontent.com/{REPO}/main/scripts/count.py"
+ZIP_URL = f"https://github.com/{REPO}/archive/refs/heads/main.zip"
 
 # --- Active time model --------------------------------------------------------
 # A gap longer than IDLE_GAP_S between two of your prompts is idle time, unless
@@ -691,11 +702,173 @@ def render_table(report: dict) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
+# --- help / update ------------------------------------------------------------
+def _parse_version(text: str) -> tuple[int, ...]:
+    parts = re.findall(r"\d+", text.split("-", 1)[0])
+    return tuple(int(p) for p in parts) if parts else (0,)
+
+
+def _skill_home_dirs() -> list[Path]:
+    home = Path.home()
+    return [
+        home / ".cursor" / "skills" / SKILL_NAME,
+        home / ".claude" / "skills" / SKILL_NAME,
+        home / ".codex" / "skills" / SKILL_NAME,
+        home / ".agents" / "skills" / SKILL_NAME,
+    ]
+
+
+def _is_skill_install(path: Path) -> bool:
+    """True for …/skills/prompt-count, never a git checkout of this repo."""
+    return path.name == SKILL_NAME and path.parent.name == "skills" and (path / "SKILL.md").is_file()
+
+
+def _installed_skill_dirs() -> list[Path]:
+    found = [p for p in _skill_home_dirs() if _is_skill_install(p)]
+    here = Path(__file__).resolve().parent.parent
+    if _is_skill_install(here) and here not in found:
+        found.append(here)
+    return found
+
+
+def _http_get(url: str, timeout: float = 15.0) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": f"prompt-counter/{__version__}"})
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return resp.read()
+
+
+def fetch_remote_version() -> str:
+    body = _http_get(RAW_VERSION_URL).decode("utf-8", errors="replace")
+    match = re.search(r'^__version__\s*=\s*["\']([^"\']+)["\']', body, re.M)
+    if not match:
+        raise RuntimeError("could not parse remote __version__")
+    return match.group(1)
+
+
+def render_help() -> str:
+    return "\n".join(
+        [
+            f"# Prompt Counter {__version__}",
+            "",
+            "Counts your **unique prompts** and **active working time** with Cursor, Claude Code and Codex.",
+            "Runs 100 % locally from transcripts already on disk. Nothing is sent anywhere (except `update`, which talks to GitHub).",
+            "",
+            "## Commands",
+            "",
+            "| In chat | What it does |",
+            "|---|---|",
+            "| `/prompt-count` | Count this project |",
+            "| `/prompt-count --all` | Every project on this machine + grand total |",
+            "| `/prompt-count help` | This help |",
+            "| `/prompt-count update` | Pull the latest release from GitHub into your skills folders |",
+            "",
+            "## CLI",
+            "",
+            "```",
+            f'python "<skill-dir>/scripts/count.py" --workspace . --format table',
+            f'python "<skill-dir>/scripts/count.py" --all --format table',
+            f'python "<skill-dir>/scripts/count.py" help',
+            f'python "<skill-dir>/scripts/count.py" update',
+            "```",
+            "",
+            "## Active time (one sentence)",
+            "",
+            "Gaps ≤ 15 min count as work; longer gaps only count (capped at 45 min) when the agent was busy with tools;",
+            "nights / lunch / PC left on do not count (5 min wrap-up only).",
+            "",
+            f"Demo: {DEMO_URL}",
+            f"Source: https://github.com/{REPO}",
+            f"Install / refresh: npx skills add {REPO} -g",
+            "",
+        ]
+    )
+
+
+def _install_from_dir(source: Path, dest: Path) -> None:
+    dest.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source / "SKILL.md", dest / "SKILL.md")
+    scripts_dst = dest / "scripts"
+    if scripts_dst.exists():
+        shutil.rmtree(scripts_dst)
+    shutil.copytree(source / "scripts", scripts_dst)
+    license_src = source / "LICENSE"
+    if license_src.is_file():
+        shutil.copy2(license_src, dest / "LICENSE")
+
+
+def cmd_update() -> int:
+    print(f"Prompt Counter {__version__} — checking GitHub ({REPO}) …")
+    try:
+        remote = fetch_remote_version()
+    except (urllib.error.URLError, TimeoutError, RuntimeError, OSError) as exc:
+        print(f"Could not reach GitHub: {exc}", file=sys.stderr)
+        return 1
+    local_v, remote_v = _parse_version(__version__), _parse_version(remote)
+    print(f"Installed: {__version__}  ·  GitHub main: {remote}")
+    if remote_v < local_v:
+        print("Local version is newer than GitHub main (dev install?). Nothing to do.")
+        return 0
+
+    targets = _installed_skill_dirs()
+    if remote_v == local_v and targets:
+        print("Already up to date.")
+        for t in targets:
+            print(f"  {t}")
+        return 0
+    if remote_v == local_v:
+        print("Already at the latest version, but no skill folder found — installing now.")
+
+    print(f"Downloading {REPO}@main …")
+    try:
+        blob = _http_get(ZIP_URL, timeout=60.0)
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        print(f"Download failed: {exc}", file=sys.stderr)
+        return 1
+
+    with tempfile.TemporaryDirectory(prefix="prompt-counter-") as tmp:
+        zpath = Path(tmp) / "src.zip"
+        zpath.write_bytes(blob)
+        with zipfile.ZipFile(zpath) as zf:
+            zf.extractall(tmp)
+        source = next(
+            (p for p in Path(tmp).iterdir() if p.is_dir() and (p / "SKILL.md").is_file()),
+            None,
+        )
+        if source is None:
+            print("Downloaded archive has no SKILL.md", file=sys.stderr)
+            return 1
+        dests = targets or _skill_home_dirs()
+        for dest in dests:
+            _install_from_dir(source, dest)
+            print(f"  updated -> {dest}")
+    print(f"Done: {__version__} → {remote}. Restart the chat (or open a new one) so the agent reloads SKILL.md.")
+    return 0
+
+
+def maybe_update_notice() -> str | None:
+    """One-line notice when PROMPT_COUNTER_CHECK_UPDATE=1. Silent on any failure."""
+    if os.environ.get("PROMPT_COUNTER_CHECK_UPDATE", "").strip() not in ("1", "true", "yes"):
+        return None
+    try:
+        remote = fetch_remote_version()
+    except Exception:
+        return None
+    if _parse_version(remote) > _parse_version(__version__):
+        return f"_Update available: {__version__} → {remote}. Run `/prompt-count update`._"
+    return None
+
+
 # --- CLI ----------------------------------------------------------------------
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="prompt-counter",
         description="Count unique prompts and active time per AI conversation (Cursor, Claude Code, Codex).",
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        choices=("help", "update"),
+        help="Optional subcommand: help | update. Default: count prompts.",
     )
     parser.add_argument("--workspace", default=".", help="Project root (default: cwd). Ignored with --all.")
     parser.add_argument("--all", action="store_true", help="Scan every project that has transcripts.")
@@ -708,6 +881,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--version", action="version", version=f"prompt-counter {__version__}")
     args = parser.parse_args(argv)
 
+    if args.command == "help":
+        sys.stdout.write(render_help())
+        return 0
+    if args.command == "update":
+        return cmd_update()
+
     wanted = set(SOURCES) if args.source == "auto" else {s.strip() for s in args.source.split(",")}
     unknown = wanted - set(SOURCES)
     if unknown:
@@ -716,8 +895,14 @@ def main(argv: list[str] | None = None) -> int:
     report = scan_all(wanted) if args.all else scan_workspace(Path(args.workspace).resolve(), wanted)
 
     if args.format == "table":
+        notice = maybe_update_notice()
+        if notice:
+            sys.stdout.write(notice + "\n\n")
         sys.stdout.write(render_table(report))
     else:
+        notice = maybe_update_notice()
+        if notice:
+            report["update_notice"] = notice
         json.dump(report, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
     return 2 if report.get("error") else 0

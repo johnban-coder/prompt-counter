@@ -11,6 +11,7 @@ One Python file, standard library only, 100 % local.
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![Skill](https://img.shields.io/badge/agent%20skill-SKILL.md-8A2BE2.svg)](SKILL.md)
+[![skills.sh](https://skills.sh/b/johnban-coder/prompt-counter)](https://skills.sh/johnban-coder/prompt-counter)
 
 [Demo page](https://johnban-coder.github.io/prompt-counter/) · [Version française](README.fr.md) · [Changelog](CHANGELOG.md)
 
@@ -23,6 +24,12 @@ One Python file, standard library only, 100 % local.
 If a user pasted this URL in your chat, install the skill for them, then run it:
 
 ```bash
+npx skills add johnban-coder/prompt-counter -g
+```
+
+Fallback (no Node):
+
+```bash
 # macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.sh | sh
 ```
@@ -33,6 +40,7 @@ irm https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.
 ```
 
 Then type `/prompt-count` in the chat, or run `python ~/.cursor/skills/prompt-count/scripts/count.py --workspace . --format table` directly.
+Later: `/prompt-count help` or `/prompt-count update`.
 
 ## What you get
 
@@ -57,11 +65,17 @@ The full JSON for this example is in [`docs/sample-output.json`](docs/sample-out
 - **Honest numbers.** Duplicates, the tool's own automatic prompts and the `/prompt-count` call itself are excluded.
 - **Active time, not wall-clock time.** Leaving the PC on overnight does not count. See [how active time works](#how-active-time-works).
 - **Per workspace.** Each project is reported independently; nothing from another repo leaks in.
-- **Private.** It reads the transcripts your tools already keep on disk, and sends nothing anywhere.
+- **Private.** Counting reads the transcripts your tools already keep on disk and sends nothing anywhere. Only `/prompt-count update` talks to the network (GitHub download).
 
 ## Install
 
 ### One line (recommended)
+
+```bash
+npx skills add johnban-coder/prompt-counter -g
+```
+
+This registers the skill with the [skills.sh](https://skills.sh) CLI (discoverable via `npx skills find`, updatable with `npx skills update`). Fallback without Node:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.sh | sh
@@ -71,7 +85,7 @@ curl -fsSL https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/i
 irm https://raw.githubusercontent.com/johnban-coder/prompt-counter/main/install.ps1 | iex
 ```
 
-This copies the skill into every user-level skills folder it knows about:
+The shell installers copy the skill into every user-level skills folder they know about:
 
 | Tool | Location |
 |---|---|
@@ -87,7 +101,6 @@ Add `PROJECT=/path/to/repo` (or `-Project C:\path`) to also drop a copy into the
 
 - **Cursor** → Settings → Rules & Skills → *Add skill from GitHub* → paste `https://github.com/johnban-coder/prompt-counter`.
 - **Claude Code / Codex / Cursor** → paste the repo URL in the chat and say *install this skill*. The agent follows the section at the top of this file.
-- **Skills CLI** → `npx skills add johnban-coder/prompt-counter`.
 - **Manual** → clone the repo and copy `SKILL.md` + `scripts/` into one of the folders above.
 
 Requires Python 3.10+ on `PATH`. No pip packages.
@@ -99,6 +112,8 @@ In a chat:
 ```
 /prompt-count              this project
 /prompt-count --all        every project on this machine
+/prompt-count help         what the skill does + commands
+/prompt-count update       pull the latest version from GitHub
 how many prompts did I send on this project?
 combien de prompts ?
 ```
@@ -108,10 +123,14 @@ From a terminal:
 ```bash
 python scripts/count.py --workspace . --format table
 python scripts/count.py --all --format table
+python scripts/count.py help
+python scripts/count.py update
 python scripts/count.py --source cursor,claude         # JSON, only some tools
 ```
 
 `--all` starts with a summary: grand total of prompts and active time (also in hours), one row per project sorted by active time, and a breakdown by tool. The per-project details follow.
+
+`update` refreshes every `…/skills/prompt-count` folder already on the machine (Cursor, Claude, Codex, agents). Counting stays offline; set `PROMPT_COUNTER_CHECK_UPDATE=1` if you want a one-line “update available” notice on reports.
 
 Exit code is `2` when the workspace has no transcripts yet.
 

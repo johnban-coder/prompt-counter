@@ -60,4 +60,5 @@ if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; 
 fi
 
 echo
-echo "Done. Open a chat in your AI tool and type:  /prompt-count"
+echo "Done. Open a chat and type:  /prompt-count"
+echo "Later:  /prompt-count help   or   /prompt-count update"

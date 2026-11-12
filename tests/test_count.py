@@ -122,6 +122,55 @@ class CodexFormatTests(unittest.TestCase):
             self.assertEqual(rows[0].tools_after, 1)
 
 
+class ManageTests(unittest.TestCase):
+    def test_parse_version(self):
+        self.assertEqual(count._parse_version("1.2.0"), (1, 2, 0))
+        self.assertTrue(count._parse_version("1.2.0") > count._parse_version("1.1.0"))
+
+    def test_help_lists_commands(self):
+        text = count.render_help()
+        self.assertIn(count.__version__, text)
+        self.assertIn("/prompt-count help", text)
+        self.assertIn("/prompt-count update", text)
+        self.assertIn("/prompt-count --all", text)
+
+    def test_update_already_current(self):
+        calls = {"n": 0}
+
+        def fake_fetch():
+            calls["n"] += 1
+            return count.__version__
+
+        with tempfile.TemporaryDirectory() as tmp:
+            skill = Path(tmp) / "skills" / count.SKILL_NAME
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text("---\nname: prompt-count\n---\n", encoding="utf-8")
+            orig_home, orig_fetch = count._skill_home_dirs, count.fetch_remote_version
+            count._skill_home_dirs = lambda: [skill]
+            count.fetch_remote_version = fake_fetch
+            try:
+                import io
+                from contextlib import redirect_stdout
+                buf = io.StringIO()
+                with redirect_stdout(buf):
+                    code = count.cmd_update()
+                self.assertIn("Already up to date", buf.getvalue())
+            finally:
+                count._skill_home_dirs = orig_home
+                count.fetch_remote_version = orig_fetch
+        self.assertEqual(code, 0)
+        self.assertEqual(calls["n"], 1)
+
+    def test_cli_help_command(self):
+        import io
+        from contextlib import redirect_stdout
+        buf = io.StringIO()
+        with redirect_stdout(buf):
+            code = count.main(["help"])
+        self.assertEqual(code, 0)
+        self.assertIn("Prompt Counter", buf.getvalue())
+
+
 class ReportTests(unittest.TestCase):
     def test_table_and_totals(self):
         rows = [count.Row(dt=T0, query="Build the landing page"), count.Row(dt=T0 + timedelta(minutes=5), query="Make it responsive")]
